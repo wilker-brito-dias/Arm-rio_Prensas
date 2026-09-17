@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adicionar Material</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header class="header"><h1>➕ Novo Material</h1></header>
+
+    <div class="container">
+        <div class="cyber-form">
+            <h2 style="color: var(--accent); margin-bottom: 20px; text-align: center;">DADOS DO SISTEMA</h2>
+            
+            <label style="font-size: 12px; color: var(--text-muted);">Código Numérico:</label>
+            <input type="text" id="novo-cod" class="input-tech" placeholder="Ex: 50082805">
+            
+            <label style="font-size: 12px; color: var(--text-muted);">Descrição do Componente:</label>
+            <input type="text" id="novo-desc" class="input-tech" placeholder="Ex: Luminária 10W">
+            
+            <label style="font-size: 12px; color: var(--text-muted);">Quantidade Inicial:</label>
+            <input type="number" id="novo-qtd" class="input-tech" value="0" min="0">
+            
+            <label style="font-size: 12px; color: var(--accent);">Anexar Foto (Opcional):</label>
+            <input type="file" id="novo-foto" class="input-tech" accept="image/*">
+            
+            <button class="cyber-btn" onclick="cadastrarItem()">Sincronizar Banco</button>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="itens.html"><span class="nav-icon">📦</span>Estoque</a>
+        <a href="inserir.html" class="ativo"><span class="nav-icon">➕</span>Adicionar</a>
+        <a href="historico.html"><span class="nav-icon">📜</span>Histórico</a>
+        <a href="index.html"><span class="nav-icon">🔒</span>Sair</a>
+    </nav>
+
+    <script src="config.js"></script>
+    <script>
+        async function cadastrarItem() {
+            // 1. Pede a senha antes de enviar para o banco
+            const senhaDigitada = prompt("🔒 Acesso Restrito: Digite a senha para cadastrar um novo componente:");
+            
+            if (senhaDigitada !== SENHA_ADMIN) {
+                alert("❌ Senha incorreta! Acesso negado.");
+                return; // Para tudo e não deixa cadastrar
+            }
+
+            // Se a senha estiver correta, o código segue normalmente:
+            const cod = document.getElementById('novo-cod').value.trim();
+            const desc = document.getElementById('novo-desc').value.trim();
+            const qtd = document.getElementById('novo-qtd').value;
+            const fotoFile = document.getElementById('novo-foto').files[0];
+
+            if(!cod || !desc) return alert("Código e Descrição são obrigatórios!");
+
+            let fotoUrl = null;
+            document.querySelector('.cyber-btn').innerText = "Sincronizando...";
+
+            if (fotoFile) {
+                const ext = fotoFile.name.split('.').pop();
+                const nomeArquivo = `${cod}-${Date.now()}.${ext}`;
+                const { error: errUpload } = await cliente.storage.from('imagens').upload(nomeArquivo, fotoFile);
+                if (errUpload) {
+                    alert("Erro na imagem: " + errUpload.message);
+                    document.querySelector('.cyber-btn').innerText = "Sincronizar Banco";
+                    return;
+                }
+                
+                const { data } = cliente.storage.from('imagens').getPublicUrl(nomeArquivo);
+                fotoUrl = data.publicUrl;
+            }
+
+            const { error } = await cliente.from('itens').insert([{ 
+                codigo: cod, descricao: desc, quantidade_atual: parseInt(qtd), imagem_url: fotoUrl 
+            }]);
+
+            if (error) {
+                alert("Erro ao salvar: " + error.message);
+            } else {
+                alert("Material cadastrado com sucesso!");
+                window.location.href = 'itens.html'; 
+            }
+            document.querySelector('.cyber-btn').innerText = "Sincronizar Banco";
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header class="header"><h1>📜 Histórico</h1></header>
+
+    <div class="container">
+        <div id="timeline" class="timeline">
+            <p style="text-align: center; color: var(--accent);">Buscando registros...</p>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="itens.html"><span class="nav-icon">📦</span>Estoque</a>
+        <a href="inserir.html"><span class="nav-icon">➕</span>Adicionar</a>
+        <a href="historico.html" class="ativo"><span class="nav-icon">📜</span>Histórico</a>
+        <a href="index.html"><span class="nav-icon">🔒</span>Sair</a>
+    </nav>
+
+    <script src="config.js"></script>
+    <script>
+        async function carregarHistorico() {
+            // O segredo está aqui: pedimos a 'descricao' da tabela 'itens' conectada!
+            const { data, error } = await cliente.from('movimentacoes')
+                .select('*, itens(descricao)')
+                .order('data_hora', { ascending: false })
+                .limit(50);
+                
+            const container = document.getElementById('timeline');
+            if (error) return container.innerHTML = 'Erro: ' + error.message;
+
+            container.innerHTML = '';
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Nenhum histórico registrado.</p>';
+                return;
+            }
+
+            data.forEach(mov => {
+                const dataFormatada = new Date(mov.data_hora).toLocaleString('pt-BR');
+                const classe = mov.tipo_movimentacao === 'SAIDA' ? 'saida' : 'entrada';
+                const icone = mov.tipo_movimentacao === 'SAIDA' ? '🔴 RETIRADA' : '🟢 ENTRADA';
+                
+                // Se o item foi deletado no passado, a relação 'itens' retorna vazia
+                const nomeItem = mov.itens ? mov.itens.descricao : 'Item Excluído do Sistema';
+                
+                container.innerHTML += `
+                    <div class="tl-item ${classe}">
+                        <div class="tl-data">${dataFormatada} - Responsável: <b>${mov.observacao}</b></div>
+                        <div class="tl-acao">${icone}</div>
+                        <div style="font-size: 13px; color: var(--text-light);">
+                            Peça: <b style="color: var(--accent);">${nomeItem}</b> (Cód: ${mov.codigo_item})<br>
+                            Quantidade Modificada: <b>${mov.quantidade}</b>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        carregarHistorico();
+    </script>
+</body>
+</html>

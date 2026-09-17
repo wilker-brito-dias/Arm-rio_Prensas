@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel - Armário Rotores</title>
+    <!-- Importa o Supabase direto pelo navegador -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --bg-page: #0f172a; --bg-sidebar: #1e293b; --bg-card: #334155; --text-main: #f8fafc; --text-muted: #94a3b8; --accent: #38bdf8; --border-color: #475569; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-page); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Menu Lateral */
+        aside { width: 250px; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 20px 0; display: flex; flex-direction: column; }
+        aside h2 { color: var(--accent); text-align: center; margin-bottom: 30px; text-transform: uppercase; }
+        .nav-btn { background: none; border: none; color: var(--text-muted); padding: 15px 20px; text-align: left; font-size: 16px; cursor: pointer; transition: 0.3s; border-left: 3px solid transparent; width: 100%; }
+        .nav-btn:hover, .nav-btn.ativo { background-color: rgba(56,189,248,0.1); color: var(--accent); border-left-color: var(--accent); }
+        .btn-voltar { margin-top: auto; color: #ff6b6b; text-align: center; text-decoration: none; padding: 15px; display: block; border-top: 1px solid var(--border-color); }
+        @media (max-width: 768px) { aside { width: 100%; height: auto; position: fixed; bottom: 0; flex-direction: row; padding: 0; z-index: 100; border-top: 1px solid var(--border-color); } aside h2, .btn-voltar { display: none; } .nav-btn { text-align: center; padding: 15px 5px; font-size: 12px; border-left: none; border-bottom: 3px solid transparent; } .nav-btn:hover, .nav-btn.ativo { border-left-color: transparent; border-bottom-color: var(--accent); } main { margin-bottom: 60px; } }
+
+        /* Conteúdo Principal */
+        main { flex: 1; padding: 30px; overflow-y: auto; }
+        .section { display: none; }
+        .section.ativo { display: block; }
+        
+        /* Cards */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+        .card { background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); text-align: center; }
+        .card.zerado { border-color: #ff6b6b; }
+        .qtd { font-size: 28px; font-weight: bold; color: var(--accent); }
+        .card.zerado .qtd { color: #ff6b6b; }
+        .botoes-acao { display: flex; gap: 8px; margin-top: 10px; }
+        .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; text-transform: uppercase; font-size: 11px; }
+        .btn-ret { background-color: #dc3545; } .btn-ins { background-color: #198754; }
+
+        /* Modal (Pop-up) */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-box { background: var(--bg-sidebar); padding: 30px; border-radius: 12px; width: 90%; max-width: 400px; border: 1px solid var(--border-color); text-align: center; }
+        .modal-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-page); color: white; }
+
+        /* Tabelas e Formulários */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--bg-card); border-radius: 8px; font-size: 14px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .form-group input { width: 100%; max-width: 400px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: white; margin-bottom: 15px; }
+        .btn-salvar { background: var(--accent); color: #000; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <h2>⚙️ Gestão</h2>
+        <button class="nav-btn ativo" onclick="mudarAba('disponiveis', this)">📦 Materiais</button>
+        <button class="nav-btn" onclick="mudarAba('historico', this); carregarHistorico()">📜 Histórico</button>
+        <button class="nav-btn" onclick="mudarAba('cadastrar', this)">➕ Adicionar Novo</button>
+        <a href="index.html" class="btn-voltar">🔒 Sair</a>
+    </aside>
+
+    <main>
+        <!-- ABA: ITENS DISPONÍVEIS -->
+        <section id="aba-disponiveis" class="section ativo">
+            <h1 style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">Materiais Disponíveis</h1>
+            <div id="grid-cards" class="grid">Carregando dados...</div>
+        </section>
+
+        <!-- ABA: HISTÓRICO -->
+        <section id="aba-historico" class="section">
+            <h1 style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">Controle de Retiradas</h1>
+            <table>
+                <thead><tr><th>Data</th><th>Item</th><th>Ação</th><th>Qtd</th><th>Responsável</th></tr></thead>
+                <tbody id="tabela-historico"></tbody>
+            </table>
+        </section>
+
+        <!-- ABA: CADASTRAR NOVO ITEM -->
+        <section id="aba-cadastrar" class="section">
+            <h1 style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">Novo Material</h1>
+            <div class="form-group"><input type="text" id="novo-codigo" placeholder="Código Numérico"></div>
+            <div class="form-group"><input type="text" id="novo-descricao" placeholder="Descrição do Item"></div>
+            <div class="form-group"><input type="number" id="novo-qtd" value="0" min="0" placeholder="Quantidade Inicial"></div>
+            <button class="btn-salvar" onclick="salvarNovoItem()">Salvar Material</button>
+        </section>
+    </main>
+
+    <!-- MODAL -->
+    <div id="modalAcao" class="modal-overlay">
+        <div class="modal-box">
+            <h2 id="modal-titulo">Ação</h2>
+            <p id="modal-desc" style="color: var(--text-muted); font-size: 14px;"></p>
+            <input type="text" id="modal-nome" placeholder="Seu Nome (Responsável)">
+            <input type="number" id="modal-qtd" placeholder="Quantidade" min="1" value="1">
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-ret" onclick="fecharModal()">Cancelar</button>
+                <button class="btn btn-ins" onclick="confirmarAcao()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Credenciais resgatadas do seu projeto Supabase existente
+        const SUPABASE_URL = 'https://lxdmksmufubyuyfxuakh.supabase.co'; 
+        const SUPABASE_KEY = 'sb_publishable_CMbXxUECMbtg9h8JEtDjow_bSntFiEi';
+        const cliente = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let itemCod = ''; let itemQtd = 0; let acao = '';
+
+        function mudarAba(id, btn) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('ativo'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('ativo'));
+            document.getElementById('aba-' + id).classList.add('ativo');
+            btn.classList.add('ativo');
+        }
+
+        async function carregarItens() {
+            const { data, error } = await cliente.from('itens').select('*').order('descricao');
+            const grid = document.getElementById('grid-cards');
+            if (error) return grid.innerHTML = 'Erro: ' + error.message;
+
+            grid.innerHTML = '';
+            data.forEach(item => {
+                const isZerado = item.quantidade_atual === 0;
+                grid.innerHTML += `
+                    <div class="card ${isZerado ? 'zerado' : ''}">
+                        <h3 style="margin:5px 0;">${item.descricao}</h3>
+                        <div style="font-size:12px; color:var(--text-muted)">Cód: ${item.codigo}</div>
+                        <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:6px; margin:10px 0;">
+                            <div class="qtd">${item.quantidade_atual}</div>
+                            ${isZerado ? '<div style="color:#ff6b6b; font-size:12px; margin-top:5px;">ESTOQUE ZERADO</div>' : ''}
+                        </div>
+                        <div class="botoes-acao">
+                            <button class="btn btn-ret" onclick="abrirModal('${item.codigo}', '${item.descricao}', ${item.quantidade_atual}, 'SAIDA')">Retirar</button>
+                            <button class="btn btn-ins" onclick="abrirModal('${item.codigo}', '${item.descricao}', ${item.quantidade_atual}, 'ENTRADA')">Inserir</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function carregarHistorico() {
+            const { data } = await cliente.from('movimentacoes').select('*').order('data_hora', { ascending: false }).limit(30);
+            const tabela = document.getElementById('tabela-historico');
+            tabela.innerHTML = '';
+            data.forEach(mov => {
+                const dataFormatada = new Date(mov.data_hora).toLocaleString('pt-BR');
+                const cor = mov.tipo_movimentacao === 'SAIDA' ? '#ff6b6b' : '#20c997';
+                tabela.innerHTML += `<tr><td>${dataFormatada}</td><td>${mov.codigo_item}</td><td style="color:${cor}; font-weight:bold;">${mov.tipo_movimentacao}</td><td>${mov.quantidade}</td><td>${mov.observacao}</td></tr>`;
+            });
+        }
+
+        async function salvarNovoItem() {
+            const cod = document.getElementById('novo-codigo').value;
+            const desc = document.getElementById('novo-descricao').value;
+            const qtd = document.getElementById('novo-qtd').value;
+            if(!cod || !desc) return alert("Preencha código e descrição!");
+            
+            const { error } = await cliente.from('itens').insert([{ codigo: cod, descricao: desc, quantidade_atual: parseInt(qtd) }]);
+            if (error) return alert("Erro ao salvar: " + error.message);
+            
+            alert("Item cadastrado!");
+            document.querySelectorAll('input').forEach(i => i.value = '');
+            carregarItens();
+        }
+
+        function abrirModal(cod, desc, qtd, tipo) {
+            itemCod = cod; itemQtd = qtd; acao = tipo;
+            document.getElementById('modal-titulo').innerText = tipo === 'SAIDA' ? 'Retirar' : 'Inserir';
+            document.getElementById('modal-titulo').style.color = tipo === 'SAIDA' ? '#ff6b6b' : '#20c997';
+            document.getElementById('modal-desc').innerText = desc;
+            document.getElementById('modal-nome').value = '';
+            document.getElementById('modal-qtd').value = 1;
+            document.getElementById('modalAcao').style.display = 'flex';
+        }
+
+        function fecharModal() { document.getElementById('modalAcao').style.display = 'none'; }
+
+        async function confirmarAcao() {
+            const nome = document.getElementById('modal-nome').value.trim();
+            const qtd = parseInt(document.getElementById('modal-qtd').value);
+            
+            if (!nome) return alert("Digite seu nome!");
+            if (qtd <= 0) return alert("Quantidade inválida!");
+
+            let novaQtd = acao === 'ENTRADA' ? itemQtd + qtd : itemQtd - qtd;
+            if (novaQtd < 0) return alert("Estoque insuficiente!");
+
+            await cliente.from('itens').update({ quantidade_atual: novaQtd }).eq('codigo', itemCod);
+            await cliente.from('movimentacoes').insert([{ codigo_item: itemCod, tipo_movimentacao: acao, quantidade: qtd, observacao: nome }]);
+
+            fecharModal();
+            carregarItens();
+        }
+
+        carregarItens();
+    </script>
+</body>
+</html>

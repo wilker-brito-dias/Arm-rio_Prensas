@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Materiais Disponíveis</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header class="header"><h1>📦 Materiais</h1></header>
+
+    <div class="container">
+        <!-- BARRA DE PESQUISA COM LUPA -->
+        <div class="search-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="inputBusca" placeholder="Buscar peça ou código..." onkeyup="filtrarItens()">
+        </div>
+
+        <div id="grid" class="grid"><p style="text-align: center; color: var(--accent); grid-column: 1/-1;">Conectando ao banco...</p></div>
+    </div>
+
+    <!-- Modais e Menus (Mantidos iguas) -->
+    <div id="modalAcao" class="modal">
+        <div class="modal-box">
+            <h2 id="modal-titulo">Ação</h2>
+            <p id="modal-desc" style="color: var(--text-muted); margin-bottom: 15px; font-size: 13px;"></p>
+            <input type="text" id="modal-nome" class="input-tech" placeholder="Seu nome (Obrigatório)">
+            <input type="number" id="modal-qtd" class="input-tech" placeholder="Quantidade" min="1" value="1">
+            <div class="botoes" style="flex-direction: row; margin-top: 15px;">
+                <button class="btn btn-ret" style="background: #64748b;" onclick="fecharModais()">Cancelar</button>
+                <button class="btn btn-ins" onclick="confirmarAcao()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalEdicao" class="modal">
+        <div class="modal-box">
+            <h2>✏️ Editar Material</h2>
+            <label style="font-size: 12px; color: var(--accent); display: block; text-align: left; margin-bottom: 5px;">Código:</label>
+            <input type="text" id="edit-cod" class="input-tech" placeholder="Novo código">
+            <label style="font-size: 12px; color: var(--accent); display: block; text-align: left; margin-bottom: 5px;">Descrição:</label>
+            <input type="text" id="edit-desc" class="input-tech" placeholder="Novo nome do material">
+            <label style="font-size: 12px; color: var(--accent); display: block; text-align: left; margin-bottom: 5px;">Atualizar Foto (Opcional):</label>
+            <input type="file" id="edit-foto" class="input-tech" accept="image/*">
+            <div class="botoes" style="margin-top: 20px;">
+                <button class="btn btn-ret" onclick="excluirItem()">🗑️ Excluir</button>
+                <button class="btn btn-ret" style="background: #64748b;" onclick="fecharModais()">Cancelar</button>
+                <button class="btn btn-ins" onclick="salvarEdicao()">Salvar</button>
+            </div>
+        </div>
+    </div>
+    <!-- NOVO MODAL: Ampliar Imagem -->
+    <div id="modalImagem" class="modal-img-preview" onclick="fecharModalImagem(event)">
+        <button class="btn-close-img" onclick="fecharModalImagem(event)">X</button>
+        <img id="img-ampliada" src="" alt="Imagem Ampliada">
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="itens.html" class="ativo"><span class="nav-icon">📦</span>Estoque</a>
+        <a href="inserir.html"><span class="nav-icon">➕</span>Adicionar</a>
+        <a href="historico.html"><span class="nav-icon">📜</span>Histórico</a>
+        <a href="index.html"><span class="nav-icon">🔒</span>Sair</a>
+    </nav>
+
+    <script src="config.js"></script>
+    <script>
+        let itemCod = ''; let itemQtd = 0; let tipoAcao = '';
+        let codigoOriginalEdicao = ''; 
+
+        async function carregar() {
+            const { data, error } = await cliente.from('itens').select('*').order('descricao');
+            const grid = document.getElementById('grid');
+            if (error) return grid.innerHTML = 'Erro: ' + error.message;
+
+            grid.innerHTML = '';
+            data.forEach(item => {
+                const zerado = item.quantidade_atual === 0;
+                const foto = item.imagem_url 
+    ? `<img src="${item.imagem_url}" onclick="abrirModalImagem('${item.imagem_url}')" title="Clique para ampliar">` 
+    : `<div class="sem-foto">Sem Imagem</div>`;
+                
+                grid.innerHTML += `
+                    <div class="card ${zerado ? 'zerado' : ''}">
+                        ${foto}
+                        <h3 class="item-titulo">${item.descricao}</h3>
+                        <div style="font-size: 11px; color: var(--text-muted);">Cód: <span class="item-codigo">${item.codigo}</span></div>
+                        <div class="qtd-box">
+                            <div class="qtd">${item.quantidade_atual}</div>
+                            ${zerado ? '<div class="aviso-zero">ESTOQUE ZERADO</div>' : ''}
+                        </div>
+                        <div class="botoes">
+                            <button class="btn btn-ret" onclick="abrirAcao('${item.codigo}', '${item.descricao}', ${item.quantidade_atual}, 'SAIDA')">Retirar</button>
+                            <button class="btn btn-ins" onclick="abrirAcao('${item.codigo}', '${item.descricao}', ${item.quantidade_atual}, 'ENTRADA')">Inserir</button>
+                        </div>
+                        <button class="btn-edit" onclick="abrirEdicao('${item.codigo}', '${item.descricao}')">⚙️ Editar</button>
+                    </div>
+                `;
+            });
+        }
+
+        // --- SISTEMA DE PESQUISA EM TEMPO REAL ---
+        function filtrarItens() {
+            const termo = document.getElementById('inputBusca').value.toLowerCase();
+            const cards = document.querySelectorAll('.card');
+            
+            cards.forEach(card => {
+                const titulo = card.querySelector('.item-titulo').innerText.toLowerCase();
+                const codigo = card.querySelector('.item-codigo').innerText.toLowerCase();
+                
+                if (titulo.includes(termo) || codigo.includes(termo)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function fecharModais() {
+            document.getElementById('modalAcao').style.display = 'none';
+            document.getElementById('modalEdicao').style.display = 'none';
+        }
+
+        function abrirAcao(cod, desc, qtd, tipo) {
+            itemCod = cod; itemQtd = qtd; tipoAcao = tipo;
+            document.getElementById('modal-titulo').innerText = tipo === 'SAIDA' ? 'Retirar' : 'Inserir';
+            document.getElementById('modal-titulo').style.color = tipo === 'SAIDA' ? 'var(--danger)' : 'var(--success)';
+            document.getElementById('modal-desc').innerText = desc;
+            document.getElementById('modal-nome').value = '';
+            document.getElementById('modal-qtd').value = 1;
+            document.getElementById('modalAcao').style.display = 'flex';
+        }
+
+        async function confirmarAcao() {
+            const nome = document.getElementById('modal-nome').value.trim();
+            const qtd = parseInt(document.getElementById('modal-qtd').value);
+            if (!nome) return alert("Digite seu nome!");
+            if (qtd <= 0) return alert("Quantidade inválida!");
+
+            const novaQtd = tipoAcao === 'ENTRADA' ? itemQtd + qtd : itemQtd - qtd;
+            if (novaQtd < 0) return alert("Estoque insuficiente!");
+
+            await cliente.from('itens').update({ quantidade_atual: novaQtd }).eq('codigo', itemCod);
+            await cliente.from('movimentacoes').insert([{ codigo_item: itemCod, tipo_movimentacao: tipoAcao, quantidade: qtd, observacao: nome }]);
+            fecharModais(); carregar();
+        }
+
+         function abrirEdicao(cod, desc) {
+            // 1. Pede a senha antes de qualquer coisa
+            const senhaDigitada = prompt("🔒 Acesso Restrito: Digite a senha para editar ou excluir itens:");
+            
+            // 2. Verifica se a senha bate com a do config.js
+            if (senhaDigitada !== SENHA_ADMIN) {
+                alert("❌ Senha incorreta ou operação cancelada. Acesso negado.");
+                return; // O comando "return" para tudo e impede o modal de abrir
+            }
+
+            // Se a senha estiver certa, o código continua normalmente abrindo o modal:
+            codigoOriginalEdicao = cod;
+            document.getElementById('edit-cod').value = cod;
+            document.getElementById('edit-desc').value = desc;
+            document.getElementById('edit-foto').value = '';
+            document.getElementById('modalEdicao').style.display = 'flex';
+        }
+        async function salvarEdicao() {
+            const novoCod = document.getElementById('edit-cod').value.trim();
+            const novoDesc = document.getElementById('edit-desc').value.trim();
+            const fotoFile = document.getElementById('edit-foto').files[0];
+
+            if (!novoDesc || !novoCod) return alert("Código e Descrição não podem ficar vazios.");
+            event.target.innerText = "Salvando...";
+            
+            let atualizacao = { codigo: novoCod, descricao: novoDesc };
+
+            if (fotoFile) {
+                const ext = fotoFile.name.split('.').pop();
+                const nomeArquivo = `${novoCod}-${Date.now()}.${ext}`;
+                const { error: errUpload } = await cliente.storage.from('imagens').upload(nomeArquivo, fotoFile);
+                if (errUpload) { alert("Erro ao subir imagem."); event.target.innerText = "Salvar"; return; }
+                const { data } = cliente.storage.from('imagens').getPublicUrl(nomeArquivo);
+                atualizacao.imagem_url = data.publicUrl;
+            }
+
+            await cliente.from('itens').update(atualizacao).eq('codigo', codigoOriginalEdicao);
+            fecharModais(); carregar();
+        }
+
+        async function excluirItem() {
+            if(!confirm("⚠️ TEM CERTEZA?\nIsso apagará o item definitivamente e todo o histórico dele desaparecerá!")) return;
+            await cliente.from('itens').delete().eq('codigo', codigoOriginalEdicao);
+            fecharModais(); carregar();
+        }
+        function abrirModalImagem(url) {
+            document.getElementById('img-ampliada').src = url;
+            document.getElementById('modalImagem').style.display = 'flex';
+        }
+
+        function fecharModalImagem(event) {
+            // Fecha apenas se o usuário clicar no 'X' ou na parte escura (fora da foto)
+            if (event.target.id === 'modalImagem' || event.target.classList.contains('btn-close-img')) {
+                document.getElementById('modalImagem').style.display = 'none';
+                document.getElementById('img-ampliada').src = '';
+            }
+        }
+        carregar();
+    </script>
+</body>
+</html>
