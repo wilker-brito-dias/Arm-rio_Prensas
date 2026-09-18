@@ -8,7 +8,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <header class="header"><h1>📦 Materiais</h1></header>
+    <header class="header">
+        <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+            <h1 style="margin-bottom: 5px;">📦 Materiais</h1>
+            <div id="nome-operador" style="color: var(--success); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
+                👤 User: Carregando...
+            </div>
+        </div>
+    </header>
 
     <div class="container">
         <!-- BARRA DE PESQUISA COM LUPA -->
@@ -60,11 +67,31 @@
         <a href="itens.html" class="ativo"><span class="nav-icon">📦</span>Estoque</a>
         <a href="inserir.html"><span class="nav-icon">➕</span>Adicionar</a>
         <a href="historico.html"><span class="nav-icon">📜</span>Histórico</a>
-        <a href="index.html"><span class="nav-icon">🔒</span>Sair</a>
+        <a href="#" onclick="travarArmario()"><span class="nav-icon">🔒</span>Travar</a>
     </nav>
 
     <script src="config.js"></script>
     <script>
+
+        // 1. VERIFICA SE O USUÁRIO FEZ LOGIN
+        const operadorLogado = sessionStorage.getItem('operadorLogado');
+        
+        if (!operadorLogado) {
+            // Se tentar entrar na URL direto sem logar, é chutado de volta pra index
+            alert('🔒 O Armário está trancado! Faça login primeiro.');
+            window.location.href = 'index.html';
+        } else {
+            // Se logou, mostra o nome dele no topo da tela (ex: User: Hiccaro)
+            document.getElementById('nome-operador').innerText = `👤 User: ${operadorLogado}`;
+        }
+
+        // 2. FUNÇÃO DE TRAVAR O ARMÁRIO
+        function travarArmario() {
+            sessionStorage.removeItem('operadorLogado'); // Apaga a "chave" da memória
+            window.location.href = 'index.html'; // Joga de volta pra capa
+        }
+
+        
         let itemCod = ''; let itemQtd = 0; let tipoAcao = '';
         let codigoOriginalEdicao = ''; 
 
