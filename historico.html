@@ -8,7 +8,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <header class="header"><h1>📜 Histórico</h1></header>
+    <header class="header">
+        <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+            <h1 style="margin-bottom: 5px;">📜 Histórico</h1>
+            <div id="nome-operador" style="color: var(--success); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
+                👤 User: Carregando...
+            </div>
+        </div>
+    </header>
 
     <div class="container">
         <div id="timeline" class="timeline">
@@ -20,13 +27,26 @@
         <a href="itens.html"><span class="nav-icon">📦</span>Estoque</a>
         <a href="inserir.html"><span class="nav-icon">➕</span>Adicionar</a>
         <a href="historico.html" class="ativo"><span class="nav-icon">📜</span>Histórico</a>
-        <a href="index.html"><span class="nav-icon">🔒</span>Sair</a>
+        <a href="#" onclick="travarArmario()"><span class="nav-icon">🔒</span>Travar</a>
     </nav>
 
     <script src="config.js"></script>
     <script>
+        // VERIFICA LOGIN AUTOMÁTICO
+        const operadorLogado = sessionStorage.getItem('operadorLogado');
+        if (!operadorLogado) {
+            alert('🔒 O Armário está trancado! Faça login primeiro.');
+            window.location.href = 'index.html';
+        } else {
+            document.getElementById('nome-operador').innerText = `👤 User: ${operadorLogado}`;
+        }
+
+        function travarArmario() {
+            sessionStorage.removeItem('operadorLogado');
+            window.location.href = 'index.html';
+        }
+
         async function carregarHistorico() {
-            // O segredo está aqui: pedimos a 'descricao' da tabela 'itens' conectada!
             const { data, error } = await cliente.from('movimentacoes')
                 .select('*, itens(descricao)')
                 .order('data_hora', { ascending: false })
@@ -47,12 +67,11 @@
                 const classe = mov.tipo_movimentacao === 'SAIDA' ? 'saida' : 'entrada';
                 const icone = mov.tipo_movimentacao === 'SAIDA' ? '🔴 RETIRADA' : '🟢 ENTRADA';
                 
-                // Se o item foi deletado no passado, a relação 'itens' retorna vazia
                 const nomeItem = mov.itens ? mov.itens.descricao : 'Item Excluído do Sistema';
                 
                 container.innerHTML += `
                     <div class="tl-item ${classe}">
-                        <div class="tl-data">${dataFormatada} - Responsável: <b>${mov.observacao}</b></div>
+                        <div class="tl-data">${dataFormatada} - Responsável: <b style="color: white;">${mov.observacao}</b></div>
                         <div class="tl-acao">${icone}</div>
                         <div style="font-size: 13px; color: var(--text-light);">
                             Peça: <b style="color: var(--accent);">${nomeItem}</b> (Cód: ${mov.codigo_item})<br>
