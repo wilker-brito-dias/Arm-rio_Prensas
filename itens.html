@@ -18,7 +18,7 @@
     </header>
 
     <div class="container">
-        <!-- BARRA DE PESQUISA COM LUPA -->
+        <!-- BARRA DE PESQUISA -->
         <div class="search-container">
             <span class="search-icon">🔍</span>
             <input type="text" id="inputBusca" placeholder="Buscar peça ou código..." onkeyup="filtrarItens()">
@@ -27,12 +27,12 @@
         <div id="grid" class="grid"><p style="text-align: center; color: var(--accent); grid-column: 1/-1;">Conectando ao banco...</p></div>
     </div>
 
-    <!-- Modais e Menus (Mantidos iguas) -->
+    <!-- Modal de Movimentação (Não pede mais o nome) -->
     <div id="modalAcao" class="modal">
         <div class="modal-box">
             <h2 id="modal-titulo">Ação</h2>
             <p id="modal-desc" style="color: var(--text-muted); margin-bottom: 15px; font-size: 13px;"></p>
-            <input type="text" id="modal-nome" class="input-tech" placeholder="Seu nome (Obrigatório)">
+            <!-- CAMPO DE NOME REMOVIDO DAQUI -->
             <input type="number" id="modal-qtd" class="input-tech" placeholder="Quantidade" min="1" value="1">
             <div class="botoes" style="flex-direction: row; margin-top: 15px;">
                 <button class="btn btn-ret" style="background: #64748b;" onclick="fecharModais()">Cancelar</button>
@@ -41,6 +41,7 @@
         </div>
     </div>
 
+    <!-- Modal de Edição (Sem senha) -->
     <div id="modalEdicao" class="modal">
         <div class="modal-box">
             <h2>✏️ Editar Material</h2>
@@ -57,7 +58,8 @@
             </div>
         </div>
     </div>
-    <!-- NOVO MODAL: Ampliar Imagem -->
+
+    <!-- Modal para Ampliar Imagem -->
     <div id="modalImagem" class="modal-img-preview" onclick="fecharModalImagem(event)">
         <button class="btn-close-img" onclick="fecharModalImagem(event)">X</button>
         <img id="img-ampliada" src="" alt="Imagem Ampliada">
@@ -72,26 +74,20 @@
 
     <script src="config.js"></script>
     <script>
-
-        // 1. VERIFICA SE O USUÁRIO FEZ LOGIN
+        // VERIFICA LOGIN AUTOMÁTICO
         const operadorLogado = sessionStorage.getItem('operadorLogado');
-        
         if (!operadorLogado) {
-            // Se tentar entrar na URL direto sem logar, é chutado de volta pra index
             alert('🔒 O Armário está trancado! Faça login primeiro.');
             window.location.href = 'index.html';
         } else {
-            // Se logou, mostra o nome dele no topo da tela (ex: User: Hiccaro)
             document.getElementById('nome-operador').innerText = `👤 User: ${operadorLogado}`;
         }
 
-        // 2. FUNÇÃO DE TRAVAR O ARMÁRIO
         function travarArmario() {
-            sessionStorage.removeItem('operadorLogado'); // Apaga a "chave" da memória
-            window.location.href = 'index.html'; // Joga de volta pra capa
+            sessionStorage.removeItem('operadorLogado');
+            window.location.href = 'index.html';
         }
 
-        
         let itemCod = ''; let itemQtd = 0; let tipoAcao = '';
         let codigoOriginalEdicao = ''; 
 
@@ -104,8 +100,8 @@
             data.forEach(item => {
                 const zerado = item.quantidade_atual === 0;
                 const foto = item.imagem_url 
-    ? `<img src="${item.imagem_url}" onclick="abrirModalImagem('${item.imagem_url}')" title="Clique para ampliar">` 
-    : `<div class="sem-foto">Sem Imagem</div>`;
+                    ? `<img src="${item.imagem_url}" onclick="abrirModalImagem('${item.imagem_url}')">` 
+                    : `<div class="sem-foto">Sem Imagem</div>`;
                 
                 grid.innerHTML += `
                     <div class="card ${zerado ? 'zerado' : ''}">
@@ -126,20 +122,14 @@
             });
         }
 
-        // --- SISTEMA DE PESQUISA EM TEMPO REAL ---
         function filtrarItens() {
             const termo = document.getElementById('inputBusca').value.toLowerCase();
             const cards = document.querySelectorAll('.card');
-            
             cards.forEach(card => {
                 const titulo = card.querySelector('.item-titulo').innerText.toLowerCase();
                 const codigo = card.querySelector('.item-codigo').innerText.toLowerCase();
-                
-                if (titulo.includes(termo) || codigo.includes(termo)) {
-                    card.style.display = 'flex';
-                } else {
-                    card.style.display = 'none';
-                }
+                if (titulo.includes(termo) || codigo.includes(termo)) card.style.display = 'flex';
+                else card.style.display = 'none';
             });
         }
 
@@ -153,42 +143,32 @@
             document.getElementById('modal-titulo').innerText = tipo === 'SAIDA' ? 'Retirar' : 'Inserir';
             document.getElementById('modal-titulo').style.color = tipo === 'SAIDA' ? 'var(--danger)' : 'var(--success)';
             document.getElementById('modal-desc').innerText = desc;
-            document.getElementById('modal-nome').value = '';
             document.getElementById('modal-qtd').value = 1;
             document.getElementById('modalAcao').style.display = 'flex';
         }
 
         async function confirmarAcao() {
-            const nome = document.getElementById('modal-nome').value.trim();
             const qtd = parseInt(document.getElementById('modal-qtd').value);
-            if (!nome) return alert("Digite seu nome!");
             if (qtd <= 0) return alert("Quantidade inválida!");
 
             const novaQtd = tipoAcao === 'ENTRADA' ? itemQtd + qtd : itemQtd - qtd;
             if (novaQtd < 0) return alert("Estoque insuficiente!");
 
             await cliente.from('itens').update({ quantidade_atual: novaQtd }).eq('codigo', itemCod);
-            await cliente.from('movimentacoes').insert([{ codigo_item: itemCod, tipo_movimentacao: tipoAcao, quantidade: qtd, observacao: nome }]);
+            // Salva o nome automático puxado do login (operadorLogado)
+            await cliente.from('movimentacoes').insert([{ codigo_item: itemCod, tipo_movimentacao: tipoAcao, quantidade: qtd, observacao: operadorLogado }]);
             fecharModais(); carregar();
         }
 
-         function abrirEdicao(cod, desc) {
-            // 1. Pede a senha antes de qualquer coisa
-            const senhaDigitada = prompt("🔒 Acesso Restrito: Digite a senha para editar ou excluir itens:");
-            
-            // 2. Verifica se a senha bate com a do config.js
-            if (senhaDigitada !== SENHA_ADMIN) {
-                alert("❌ Senha incorreta ou operação cancelada. Acesso negado.");
-                return; // O comando "return" para tudo e impede o modal de abrir
-            }
-
-            // Se a senha estiver certa, o código continua normalmente abrindo o modal:
+        function abrirEdicao(cod, desc) {
+            // Acesso liberado direto (sem senha)
             codigoOriginalEdicao = cod;
             document.getElementById('edit-cod').value = cod;
             document.getElementById('edit-desc').value = desc;
             document.getElementById('edit-foto').value = '';
             document.getElementById('modalEdicao').style.display = 'flex';
         }
+
         async function salvarEdicao() {
             const novoCod = document.getElementById('edit-cod').value.trim();
             const novoDesc = document.getElementById('edit-desc').value.trim();
@@ -217,18 +197,19 @@
             await cliente.from('itens').delete().eq('codigo', codigoOriginalEdicao);
             fecharModais(); carregar();
         }
+
         function abrirModalImagem(url) {
             document.getElementById('img-ampliada').src = url;
             document.getElementById('modalImagem').style.display = 'flex';
         }
 
         function fecharModalImagem(event) {
-            // Fecha apenas se o usuário clicar no 'X' ou na parte escura (fora da foto)
             if (event.target.id === 'modalImagem' || event.target.classList.contains('btn-close-img')) {
                 document.getElementById('modalImagem').style.display = 'none';
                 document.getElementById('img-ampliada').src = '';
             }
         }
+
         carregar();
     </script>
 </body>
