@@ -34,7 +34,7 @@
     <div id="telaLogin" class="modal-login">
         <div class="modal-box">
             <h2 style="color: #38bdf8; margin-top: 0; margin-bottom: 20px;">🔒 Acesso Restrito</h2>
-            <input type="text" id="user" class="input-login" placeholder="Usuário (Ex: Hiccaro)">
+            <input type="text" id="user" class="input-login" placeholder="Usuário (Digite seu nome)">
             <input type="password" id="pass" class="input-login" placeholder="Senha">
             <div style="display: flex; gap: 10px;">
                 <button class="btn-acao" style="background: #64748b; color: white;" onclick="fecharLogin()">Cancelar</button>
@@ -46,8 +46,11 @@
     <script>
         // SEUS DOIS USUÁRIOS PERMITIDOS
         const usuariosPermitidos = [
+            { nome: 'Hiccaro', senha: 'hicaro' },
+            { nome: 'Eduardo', senha: 'pinto' },
+            { nome: 'Cleverson', senha: '123321' },
             { nome: 'Hiccaro', senha: '123' },
-            { nome: 'Wilker', senha: '321' }
+            { nome: 'Wilker', senha: '7162' }
         ];
 
         function abrirLogin() {
