@@ -8,7 +8,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <header class="header"><h1>➕ Novo Material</h1></header>
+    <header class="header">
+        <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+            <h1 style="margin-bottom: 5px;">➕ Novo Material</h1>
+            <div id="nome-operador" style="color: var(--success); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
+                👤 User: Carregando...
+            </div>
+        </div>
+    </header>
 
     <div class="container">
         <div class="cyber-form">
@@ -34,21 +41,27 @@
         <a href="itens.html"><span class="nav-icon">📦</span>Estoque</a>
         <a href="inserir.html" class="ativo"><span class="nav-icon">➕</span>Adicionar</a>
         <a href="historico.html"><span class="nav-icon">📜</span>Histórico</a>
-        <a href="index.html"><span class="nav-icon">🔒</span>Sair</a>
+        <a href="#" onclick="travarArmario()"><span class="nav-icon">🔒</span>Travar</a>
     </nav>
 
     <script src="config.js"></script>
     <script>
-        async function cadastrarItem() {
-            // 1. Pede a senha antes de enviar para o banco
-            const senhaDigitada = prompt("🔒 Acesso Restrito: Digite a senha para cadastrar um novo componente:");
-            
-            if (senhaDigitada !== SENHA_ADMIN) {
-                alert("❌ Senha incorreta! Acesso negado.");
-                return; // Para tudo e não deixa cadastrar
-            }
+        // VERIFICA LOGIN AUTOMÁTICO
+        const operadorLogado = sessionStorage.getItem('operadorLogado');
+        if (!operadorLogado) {
+            alert('🔒 O Armário está trancado! Faça login primeiro.');
+            window.location.href = 'index.html';
+        } else {
+            document.getElementById('nome-operador').innerText = `👤 User: ${operadorLogado}`;
+        }
 
-            // Se a senha estiver correta, o código segue normalmente:
+        function travarArmario() {
+            sessionStorage.removeItem('operadorLogado');
+            window.location.href = 'index.html';
+        }
+
+        async function cadastrarItem() {
+            // Não pede mais senha. Liberação direta pela sessão.
             const cod = document.getElementById('novo-cod').value.trim();
             const desc = document.getElementById('novo-desc').value.trim();
             const qtd = document.getElementById('novo-qtd').value;
@@ -68,11 +81,11 @@
                     document.querySelector('.cyber-btn').innerText = "Sincronizar Banco";
                     return;
                 }
-                
                 const { data } = cliente.storage.from('imagens').getPublicUrl(nomeArquivo);
                 fotoUrl = data.publicUrl;
             }
 
+            // Grava o item no banco
             const { error } = await cliente.from('itens').insert([{ 
                 codigo: cod, descricao: desc, quantidade_atual: parseInt(qtd), imagem_url: fotoUrl 
             }]);
@@ -80,6 +93,15 @@
             if (error) {
                 alert("Erro ao salvar: " + error.message);
             } else {
+                // Se a quantidade inicial for maior que zero, já registra no histórico quem colocou
+                if(parseInt(qtd) > 0) {
+                    await cliente.from('movimentacoes').insert([{ 
+                        codigo_item: cod, 
+                        tipo_movimentacao: 'ENTRADA', 
+                        quantidade: parseInt(qtd), 
+                        observacao: operadorLogado + ' (Cadastro de Novo Item)'
+                    }]);
+                }
                 alert("Material cadastrado com sucesso!");
                 window.location.href = 'itens.html'; 
             }
