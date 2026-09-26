@@ -2,66 +2,201 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Materiais Disponíveis</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Estoque - Armário das Prensas</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --ip-radius: 16px;
+            --ip-radius-sm: 10px;
+        }
+
+        body { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+
+        /* ===== Cabeçalho + barra de busca fixos ===== */
+        .ip-topbar {
+            position: sticky; top: 0; z-index: 60;
+            background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--border);
+            padding-top: env(safe-area-inset-top, 0px);
+        }
+        .ip-topbar-inner { max-width: 1100px; margin: 0 auto; padding: 16px 18px 14px; }
+        .ip-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .ip-title { font-size: 20px; font-weight: 700; color: var(--text-light); letter-spacing: 0.3px; }
+        .ip-badge { display: flex; align-items: center; gap: 6px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: var(--accent); padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+        .ip-search { position: relative; margin-bottom: 12px; }
+        .ip-search input {
+            width: 100%; padding: 13px 16px 13px 44px; border-radius: var(--ip-radius-sm);
+            border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--text-light);
+            font-size: 15px; outline: none; transition: border-color .2s, background .2s;
+        }
+        .ip-search input:focus { border-color: var(--accent); background: rgba(255,255,255,0.07); }
+        .ip-search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 16px; }
+
+        .ip-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+        .ip-chips::-webkit-scrollbar { display: none; }
+        .ip-chip {
+            flex-shrink: 0; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border);
+            background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: .2s;
+        }
+        .ip-chip.ativo { background: var(--accent); border-color: var(--accent); color: #04121e; }
+
+        /* ===== Grade de itens ===== */
+        .ip-container { max-width: 1100px; margin: 0 auto; padding: 18px; }
+        .ip-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+        }
+        @media (min-width: 480px) { .ip-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; } }
+        @media (min-width: 720px) { .ip-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; } }
+        @media (min-width: 1000px) { .ip-grid { grid-template-columns: repeat(5, 1fr); } }
+
+        .ip-card {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--ip-radius);
+            padding: 12px; display: flex; flex-direction: column; position: relative;
+            animation: ip-fade-in .25s ease both;
+        }
+        @keyframes ip-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .ip-card.zerado { border-color: rgba(239,68,68,0.5); }
+
+        .ip-img-wrap { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: var(--ip-radius-sm); overflow: hidden; background: rgba(0,0,0,0.35); margin-bottom: 10px; }
+        .ip-img-wrap img { width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+        .ip-sem-foto { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px; text-align: center; padding: 8px; }
+        .ip-edit-btn {
+            position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%;
+            background: rgba(15,23,42,0.75); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.12);
+            color: var(--text-light); display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer;
+        }
+        .ip-edit-btn:active { transform: scale(0.92); }
+
+        .ip-desc { font-size: 13.5px; font-weight: 600; color: var(--text-light); line-height: 1.25; margin-bottom: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .ip-cod { font-size: 10.5px; color: var(--text-muted); margin-bottom: 8px; }
+
+        .ip-qtd-row { display: flex; align-items: baseline; justify-content: space-between; background: rgba(0,0,0,0.25); border-radius: var(--ip-radius-sm); padding: 8px 10px; margin-bottom: 10px; }
+        .ip-qtd { font-size: 21px; font-weight: 700; color: var(--accent); }
+        .ip-card.zerado .ip-qtd { color: var(--danger); }
+        .ip-qtd-label { font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .ip-tag-zerado { font-size: 9.5px; font-weight: 700; color: var(--danger); }
+
+        .ip-acoes { display: flex; gap: 6px; margin-top: auto; }
+        .ip-btn { flex: 1; padding: 9px 4px; border: none; border-radius: 8px; font-weight: 700; font-size: 11.5px; cursor: pointer; color: white; text-transform: uppercase; letter-spacing: 0.3px; transition: transform .1s; }
+        .ip-btn:active { transform: scale(0.95); }
+        .ip-btn-ret { background: var(--danger); }
+        .ip-btn-ins { background: var(--success); }
+
+        /* ===== Estados vazio / carregando ===== */
+        .ip-empty { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-muted); }
+        .ip-empty-icon { font-size: 38px; margin-bottom: 10px; }
+        .ip-skel { background: var(--bg-card); border-radius: var(--ip-radius); height: 210px; overflow: hidden; position: relative; }
+        .ip-skel::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent); animation: ip-shimmer 1.3s infinite; }
+        @keyframes ip-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+        /* ===== Botão flutuante ===== */
+        .ip-fab {
+            position: fixed; right: 18px; bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+            width: 54px; height: 54px; border-radius: 50%; background: var(--accent); color: #04121e;
+            display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700;
+            text-decoration: none; box-shadow: 0 8px 20px rgba(56,189,248,0.35); z-index: 70; transition: transform .15s;
+        }
+        .ip-fab:active { transform: scale(0.92); }
+
+        /* ===== Modais em formato "bottom sheet" no mobile ===== */
+        .ip-sheet-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+            display: none; align-items: flex-end; justify-content: center; z-index: 300;
+        }
+        .ip-sheet {
+            background: var(--bg-card); width: 100%; max-width: 480px; border-radius: 20px 20px 0 0;
+            padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px)); border: 1px solid var(--border); border-bottom: none;
+            animation: ip-slide-up .22s ease;
+        }
+        @keyframes ip-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .ip-sheet-handle { width: 40px; height: 4px; background: var(--border); border-radius: 999px; margin: 0 auto 16px; }
+        @media (min-width: 620px) {
+            .ip-sheet-overlay { align-items: center; }
+            .ip-sheet { border-radius: 18px; border-bottom: 1px solid var(--border); animation: ip-pop-in .18s ease; }
+            .ip-sheet-handle { display: none; }
+            @keyframes ip-pop-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        }
+        .ip-sheet h2 { font-size: 17px; margin-bottom: 4px; }
+        .ip-sheet .ip-sheet-desc { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
+        .ip-sheet input, .ip-sheet .input-tech { margin-bottom: 12px; }
+        .ip-sheet-botoes { display: flex; gap: 10px; margin-top: 6px; }
+        .ip-sheet-botoes .btn { padding: 13px; border-radius: 10px; }
+
+        /* Modal de imagem ampliada */
+        .ip-img-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.94); display: none; align-items: center; justify-content: center; z-index: 400; padding: 20px; }
+        .ip-img-modal img { max-width: 100%; max-height: 85vh; border-radius: 12px; }
+        .ip-img-close { position: absolute; top: calc(18px + env(safe-area-inset-top, 0px)); right: 18px; width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.12); border: none; color: white; font-size: 16px; cursor: pointer; }
+    </style>
 </head>
 <body>
-    <header class="header">
-        <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
-            <h1 style="margin-bottom: 5px;">📦 Materiais</h1>
-            <div id="nome-operador" style="color: var(--success); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
-                👤 User: Carregando...
+
+    <div class="ip-topbar">
+        <div class="ip-topbar-inner">
+            <div class="ip-title-row">
+                <span class="ip-title">📦 Estoque</span>
+                <span class="ip-badge" id="nome-operador">👤 Carregando...</span>
+            </div>
+            <div class="ip-search">
+                <span class="ip-search-icon">🔍</span>
+                <input type="text" id="inputBusca" placeholder="Buscar peça ou código..." oninput="renderizar()">
+            </div>
+            <div class="ip-chips">
+                <button class="ip-chip ativo" data-filtro="todos" onclick="mudarFiltro('todos', this)">Todos</button>
+                <button class="ip-chip" data-filtro="disponivel" onclick="mudarFiltro('disponivel', this)">Disponíveis</button>
+                <button class="ip-chip" data-filtro="zerado" onclick="mudarFiltro('zerado', this)">Estoque zerado</button>
             </div>
         </div>
-    </header>
-
-    <div class="container">
-        <!-- BARRA DE PESQUISA -->
-        <div class="search-container">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="inputBusca" placeholder="Buscar peça ou código..." onkeyup="filtrarItens()">
-        </div>
-
-        <div id="grid" class="grid"><p style="text-align: center; color: var(--accent); grid-column: 1/-1;">Conectando ao banco...</p></div>
     </div>
 
-    <!-- Modal de Movimentação (Não pede mais o nome) -->
-    <div id="modalAcao" class="modal">
-        <div class="modal-box">
+    <div class="ip-container">
+        <div id="grid" class="ip-grid">
+            <div class="ip-skel"></div><div class="ip-skel"></div><div class="ip-skel"></div><div class="ip-skel"></div>
+        </div>
+    </div>
+
+    <a href="inserir.html" class="ip-fab" title="Adicionar material">＋</a>
+
+    <!-- Bottom sheet: movimentação -->
+    <div id="modalAcao" class="ip-sheet-overlay">
+        <div class="ip-sheet">
+            <div class="ip-sheet-handle"></div>
             <h2 id="modal-titulo">Ação</h2>
-            <p id="modal-desc" style="color: var(--text-muted); margin-bottom: 15px; font-size: 13px;"></p>
-            <!-- CAMPO DE NOME REMOVIDO DAQUI -->
+            <p id="modal-desc" class="ip-sheet-desc"></p>
             <input type="number" id="modal-qtd" class="input-tech" placeholder="Quantidade" min="1" value="1">
-            <div class="botoes" style="flex-direction: row; margin-top: 15px;">
-                <button class="btn btn-ret" style="background: #64748b;" onclick="fecharModais()">Cancelar</button>
-                <button class="btn btn-ins" onclick="confirmarAcao()">Confirmar</button>
+            <div class="ip-sheet-botoes">
+                <button class="btn" style="background:#64748b; color:white;" onclick="fecharModais()">Cancelar</button>
+                <button class="btn" id="btn-confirmar-acao" style="background:var(--success); color:white;" onclick="confirmarAcao()">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Edição (Sem senha) -->
-    <div id="modalEdicao" class="modal">
-        <div class="modal-box">
+    <!-- Bottom sheet: edição -->
+    <div id="modalEdicao" class="ip-sheet-overlay">
+        <div class="ip-sheet">
+            <div class="ip-sheet-handle"></div>
             <h2>✏️ Editar Material</h2>
-            <label style="font-size: 12px; color: var(--accent); display: block; text-align: left; margin-bottom: 5px;">Código:</label>
+            <p class="ip-sheet-desc">Atualize os dados ou remova este item do estoque.</p>
+            <label style="font-size: 12px; color: var(--accent); display: block; margin-bottom: 5px;">Código:</label>
             <input type="text" id="edit-cod" class="input-tech" placeholder="Novo código">
-            <label style="font-size: 12px; color: var(--accent); display: block; text-align: left; margin-bottom: 5px;">Descrição:</label>
+            <label style="font-size: 12px; color: var(--accent); display: block; margin-bottom: 5px;">Descrição:</label>
             <input type="text" id="edit-desc" class="input-tech" placeholder="Novo nome do material">
-            <label style="font-size: 12px; color: var(--accent); display: block; text-align: left; margin-bottom: 5px;">Atualizar Foto (Opcional):</label>
+            <label style="font-size: 12px; color: var(--accent); display: block; margin-bottom: 5px;">Atualizar Foto (Opcional):</label>
             <input type="file" id="edit-foto" class="input-tech" accept="image/*">
-            <div class="botoes" style="margin-top: 20px;">
-                <button class="btn btn-ret" onclick="excluirItem()">🗑️ Excluir</button>
-                <button class="btn btn-ret" style="background: #64748b;" onclick="fecharModais()">Cancelar</button>
-                <button class="btn btn-ins" onclick="salvarEdicao()">Salvar</button>
+            <div class="ip-sheet-botoes">
+                <button class="btn" style="background:#ef4444; color:white;" onclick="excluirItem()">🗑️ Excluir</button>
+                <button class="btn" style="background:#64748b; color:white;" onclick="fecharModais()">Cancelar</button>
+                <button class="btn" id="btn-salvar-edicao" style="background:var(--accent); color:#04121e;" onclick="salvarEdicao()">Salvar</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal para Ampliar Imagem -->
-    <div id="modalImagem" class="modal-img-preview" onclick="fecharModalImagem(event)">
-        <button class="btn-close-img" onclick="fecharModalImagem(event)">X</button>
+    <!-- Imagem ampliada -->
+    <div id="modalImagem" class="ip-img-modal" onclick="fecharModalImagem(event)">
+        <button class="ip-img-close" onclick="fecharModalImagem(event)">✕</button>
         <img id="img-ampliada" src="" alt="Imagem Ampliada">
     </div>
 
@@ -80,7 +215,7 @@
             alert('🔒 O Armário está trancado! Faça login primeiro.');
             window.location.href = 'index.html';
         } else {
-            document.getElementById('nome-operador').innerText = `👤 User: ${operadorLogado}`;
+            document.getElementById('nome-operador').innerText = `👤 ${operadorLogado}`;
         }
 
         function travarArmario() {
@@ -88,49 +223,78 @@
             window.location.href = 'index.html';
         }
 
+        let todosItens = [];
+        let filtroAtual = 'todos';
         let itemCod = ''; let itemQtd = 0; let tipoAcao = '';
-        let codigoOriginalEdicao = ''; 
+        let codigoOriginalEdicao = '';
 
         async function carregar() {
             const { data, error } = await cliente.from('itens').select('*').order('descricao');
             const grid = document.getElementById('grid');
-            if (error) return grid.innerHTML = 'Erro: ' + error.message;
-
-            grid.innerHTML = '';
-            data.forEach(item => {
-                const zerado = item.quantidade_atual === 0;
-                const foto = item.imagem_url 
-                    ? `<img src="${item.imagem_url}" onclick="abrirModalImagem('${item.imagem_url}')">` 
-                    : `<div class="sem-foto">Sem Imagem</div>`;
-                
-                grid.innerHTML += `
-                    <div class="card ${zerado ? 'zerado' : ''}">
-                        ${foto}
-                        <h3 class="item-titulo">${item.descricao}</h3>
-                        <div style="font-size: 11px; color: var(--text-muted);">Cód: <span class="item-codigo">${item.codigo}</span></div>
-                        <div class="qtd-box">
-                            <div class="qtd">${item.quantidade_atual}</div>
-                            ${zerado ? '<div class="aviso-zero">ESTOQUE ZERADO</div>' : ''}
-                        </div>
-                        <div class="botoes">
-                            <button class="btn btn-ret" onclick="abrirAcao('${item.codigo}', '${item.descricao}', ${item.quantidade_atual}, 'SAIDA')">Retirar</button>
-                            <button class="btn btn-ins" onclick="abrirAcao('${item.codigo}', '${item.descricao}', ${item.quantidade_atual}, 'ENTRADA')">Inserir</button>
-                        </div>
-                        <button class="btn-edit" onclick="abrirEdicao('${item.codigo}', '${item.descricao}')">⚙️ Editar</button>
-                    </div>
-                `;
-            });
+            if (error) {
+                grid.innerHTML = `<div class="ip-empty" style="grid-column:1/-1;">⚠️ Erro ao carregar: ${error.message}</div>`;
+                return;
+            }
+            todosItens = data;
+            renderizar();
         }
 
-        function filtrarItens() {
-            const termo = document.getElementById('inputBusca').value.toLowerCase();
-            const cards = document.querySelectorAll('.card');
-            cards.forEach(card => {
-                const titulo = card.querySelector('.item-titulo').innerText.toLowerCase();
-                const codigo = card.querySelector('.item-codigo').innerText.toLowerCase();
-                if (titulo.includes(termo) || codigo.includes(termo)) card.style.display = 'flex';
-                else card.style.display = 'none';
+        function mudarFiltro(filtro, btn) {
+            filtroAtual = filtro;
+            document.querySelectorAll('.ip-chip').forEach(c => c.classList.remove('ativo'));
+            btn.classList.add('ativo');
+            renderizar();
+        }
+
+        function renderizar() {
+            const termo = document.getElementById('inputBusca').value.toLowerCase().trim();
+            const grid = document.getElementById('grid');
+
+            let lista = todosItens.filter(item => {
+                const bateBusca = item.descricao.toLowerCase().includes(termo) || String(item.codigo).toLowerCase().includes(termo);
+                const bateFiltro = filtroAtual === 'todos'
+                    || (filtroAtual === 'zerado' && item.quantidade_atual === 0)
+                    || (filtroAtual === 'disponivel' && item.quantidade_atual > 0);
+                return bateBusca && bateFiltro;
             });
+
+            if (lista.length === 0) {
+                grid.innerHTML = `
+                    <div class="ip-empty">
+                        <div class="ip-empty-icon">🔍</div>
+                        <div>Nenhum material encontrado.</div>
+                    </div>`;
+                return;
+            }
+
+            grid.innerHTML = lista.map(item => {
+                const zerado = item.quantidade_atual === 0;
+                const foto = item.imagem_url
+                    ? `<img src="${item.imagem_url}" onclick="abrirModalImagem('${item.imagem_url}')">`
+                    : `<div class="ip-sem-foto">Sem imagem</div>`;
+
+                return `
+                    <div class="ip-card ${zerado ? 'zerado' : ''}">
+                        <div class="ip-img-wrap">
+                            ${foto}
+                            <button class="ip-edit-btn" onclick="abrirEdicao('${item.codigo}', '${item.descricao}')">⚙️</button>
+                        </div>
+                        <div class="ip-desc">${item.descricao}</div>
+                        <div class="ip-cod">Cód: ${item.codigo}</div>
+                        <div class="ip-qtd-row">
+                            <div>
+                                <div class="ip-qtd">${item.quantidade_atual}</div>
+                                <div class="ip-qtd-label">em estoque</div>
+                            </div>
+                            ${zerado ? '<div class="ip-tag-zerado">ZERADO</div>' : ''}
+                        </div>
+                        <div class="ip-acoes">
+                            <button class="ip-btn ip-btn-ret" onclick="abrirAcao('${item.codigo}', '${item.descricao}', ${item.quantidade_atual}, 'SAIDA')">Retirar</button>
+                            <button class="ip-btn ip-btn-ins" onclick="abrirAcao('${item.codigo}', '${item.descricao}', ${item.quantidade_atual}, 'ENTRADA')">Inserir</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function fecharModais() {
@@ -140,8 +304,9 @@
 
         function abrirAcao(cod, desc, qtd, tipo) {
             itemCod = cod; itemQtd = qtd; tipoAcao = tipo;
-            document.getElementById('modal-titulo').innerText = tipo === 'SAIDA' ? 'Retirar' : 'Inserir';
+            document.getElementById('modal-titulo').innerText = tipo === 'SAIDA' ? 'Retirar material' : 'Inserir material';
             document.getElementById('modal-titulo').style.color = tipo === 'SAIDA' ? 'var(--danger)' : 'var(--success)';
+            document.getElementById('btn-confirmar-acao').style.background = tipo === 'SAIDA' ? 'var(--danger)' : 'var(--success)';
             document.getElementById('modal-desc').innerText = desc;
             document.getElementById('modal-qtd').value = 1;
             document.getElementById('modalAcao').style.display = 'flex';
@@ -149,19 +314,18 @@
 
         async function confirmarAcao() {
             const qtd = parseInt(document.getElementById('modal-qtd').value);
-            if (qtd <= 0) return alert("Quantidade inválida!");
+            if (!qtd || qtd <= 0) return alert('Quantidade inválida!');
 
             const novaQtd = tipoAcao === 'ENTRADA' ? itemQtd + qtd : itemQtd - qtd;
-            if (novaQtd < 0) return alert("Estoque insuficiente!");
+            if (novaQtd < 0) return alert('Estoque insuficiente!');
 
             await cliente.from('itens').update({ quantidade_atual: novaQtd }).eq('codigo', itemCod);
-            // Salva o nome automático puxado do login (operadorLogado)
             await cliente.from('movimentacoes').insert([{ codigo_item: itemCod, tipo_movimentacao: tipoAcao, quantidade: qtd, observacao: operadorLogado }]);
-            fecharModais(); carregar();
+            fecharModais();
+            carregar();
         }
 
         function abrirEdicao(cod, desc) {
-            // Acesso liberado direto (sem senha)
             codigoOriginalEdicao = cod;
             document.getElementById('edit-cod').value = cod;
             document.getElementById('edit-desc').value = desc;
@@ -173,29 +337,33 @@
             const novoCod = document.getElementById('edit-cod').value.trim();
             const novoDesc = document.getElementById('edit-desc').value.trim();
             const fotoFile = document.getElementById('edit-foto').files[0];
+            if (!novoDesc || !novoCod) return alert('Código e Descrição não podem ficar vazios.');
 
-            if (!novoDesc || !novoCod) return alert("Código e Descrição não podem ficar vazios.");
-            event.target.innerText = "Salvando...";
-            
+            const botao = document.getElementById('btn-salvar-edicao');
+            botao.innerText = 'Salvando...';
+
             let atualizacao = { codigo: novoCod, descricao: novoDesc };
 
             if (fotoFile) {
                 const ext = fotoFile.name.split('.').pop();
                 const nomeArquivo = `${novoCod}-${Date.now()}.${ext}`;
                 const { error: errUpload } = await cliente.storage.from('imagens').upload(nomeArquivo, fotoFile);
-                if (errUpload) { alert("Erro ao subir imagem."); event.target.innerText = "Salvar"; return; }
+                if (errUpload) { alert('Erro ao subir imagem.'); botao.innerText = 'Salvar'; return; }
                 const { data } = cliente.storage.from('imagens').getPublicUrl(nomeArquivo);
                 atualizacao.imagem_url = data.publicUrl;
             }
 
             await cliente.from('itens').update(atualizacao).eq('codigo', codigoOriginalEdicao);
-            fecharModais(); carregar();
+            botao.innerText = 'Salvar';
+            fecharModais();
+            carregar();
         }
 
         async function excluirItem() {
-            if(!confirm("⚠️ TEM CERTEZA?\nIsso apagará o item definitivamente e todo o histórico dele desaparecerá!")) return;
+            if (!confirm('⚠️ TEM CERTEZA?\nIsso apagará o item definitivamente e todo o histórico dele desaparecerá!')) return;
             await cliente.from('itens').delete().eq('codigo', codigoOriginalEdicao);
-            fecharModais(); carregar();
+            fecharModais();
+            carregar();
         }
 
         function abrirModalImagem(url) {
@@ -204,7 +372,7 @@
         }
 
         function fecharModalImagem(event) {
-            if (event.target.id === 'modalImagem' || event.target.classList.contains('btn-close-img')) {
+            if (event.target.id === 'modalImagem' || event.target.classList.contains('ip-img-close')) {
                 document.getElementById('modalImagem').style.display = 'none';
                 document.getElementById('img-ampliada').src = '';
             }
