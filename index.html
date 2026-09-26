@@ -53,15 +53,14 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <script>
-        // SEUS DOIS USUÁRIOS PERMITIDOS
-        const usuariosPermitidos = [
-            { nome: 'Hiccaro', senha: 'hicaro' },
-            { nome: 'Eduardo', senha: 'pinto' },
-            { nome: 'Cleverson', senha: '123321' },
-            { nome: 'Hiccaro', senha: '123' },
-            { nome: 'Wilker', senha: '7162' }
-        ];
+        // Domínio fictício usado só internamente pra transformar
+        // o "nome de usuário" num e-mail que o Supabase Auth aceita.
+        // Ninguém recebe e-mail nenhum nesse domínio, é só um identificador.
+        const DOMINIO_INTERNO = 'armario-prensas.app';
+
         // MÁGICA 1: Forçar Primeira Letra Maiúscula e o resto minúsculo no Usuário
         document.getElementById('user').addEventListener('input', function(e) {
             let texto = e.target.value;
@@ -70,12 +69,7 @@
             }
         });
 
-        // MÁGICA 2: Forçar tudo Minúsculo na Senha
-        document.getElementById('pass').addEventListener('input', function(e) {
-            e.target.value = e.target.value.toLowerCase();
-        });
-
-        // MÁGICA 3: O Olhinho da Senha
+        // O Olhinho da Senha
         function toggleSenha() {
             const passInput = document.getElementById('pass');
             const btnEye = document.querySelector('.btn-eye');
@@ -100,20 +94,33 @@
             document.getElementById('pass').value = '';
         }
 
-        function fazerLogin() {
+        async function fazerLogin() {
+            const botao = document.querySelector('.modal-box .btn-acao:last-child');
             const userDigitado = document.getElementById('user').value.trim();
-            const passDigitada = document.getElementById('pass').value.trim();
+            const passDigitada = document.getElementById('pass').value; // sem trim: senha respeita espaços se houver
 
-            const usuarioValido = usuariosPermitidos.find(
-                u => u.nome === userDigitado && u.senha === passDigitada
-            );
-
-            if (usuarioValido) {
-                sessionStorage.setItem('operadorLogado', usuarioValido.nome);
-                window.location.href = 'itens.html';
-            } else {
-                alert('❌ Usuário ou senha incorretos! Acesso Negado.');
+            if (!userDigitado || !passDigitada) {
+                alert('Preencha usuário e senha.');
+                return;
             }
+
+            // Transforma o nome digitado no "e-mail" interno cadastrado no Supabase
+            const emailInterno = userDigitado.toLowerCase() + '@' + DOMINIO_INTERNO;
+
+            botao.innerText = 'Verificando...';
+            const { data, error } = await cliente.auth.signInWithPassword({
+                email: emailInterno,
+                password: passDigitada
+            });
+            botao.innerText = 'Entrar';
+
+            if (error) {
+                alert('❌ Usuário ou senha incorretos! Acesso Negado.');
+                return;
+            }
+
+            sessionStorage.setItem('operadorLogado', userDigitado.charAt(0).toUpperCase() + userDigitado.slice(1).toLowerCase());
+            window.location.href = 'itens.html';
         }
     </script>
 </body>

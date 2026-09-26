@@ -3,112 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel - Armário Rotores</title>
-    <!-- Importa o Supabase direto pelo navegador -->
+    <title>Painel - Armário das Prensas</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --bg-page: #0f172a; --bg-sidebar: #1e293b; --bg-card: #334155; --text-main: #f8fafc; --text-muted: #94a3b8; --accent: #38bdf8; --border-color: #475569; }
-        body { margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-page); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
-        
-        /* Menu Lateral */
-        aside { width: 250px; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 20px 0; display: flex; flex-direction: column; }
-        aside h2 { color: var(--accent); text-align: center; margin-bottom: 30px; text-transform: uppercase; }
-        .nav-btn { background: none; border: none; color: var(--text-muted); padding: 15px 20px; text-align: left; font-size: 16px; cursor: pointer; transition: 0.3s; border-left: 3px solid transparent; width: 100%; }
-        .nav-btn:hover, .nav-btn.ativo { background-color: rgba(56,189,248,0.1); color: var(--accent); border-left-color: var(--accent); }
-        .btn-voltar { margin-top: auto; color: #ff6b6b; text-align: center; text-decoration: none; padding: 15px; display: block; border-top: 1px solid var(--border-color); }
-        @media (max-width: 768px) { aside { width: 100%; height: auto; position: fixed; bottom: 0; flex-direction: row; padding: 0; z-index: 100; border-top: 1px solid var(--border-color); } aside h2, .btn-voltar { display: none; } .nav-btn { text-align: center; padding: 15px 5px; font-size: 12px; border-left: none; border-bottom: 3px solid transparent; } .nav-btn:hover, .nav-btn.ativo { border-left-color: transparent; border-bottom-color: var(--accent); } main { margin-bottom: 60px; } }
-
-        /* Conteúdo Principal */
-        main { flex: 1; padding: 30px; overflow-y: auto; }
-        .section { display: none; }
-        .section.ativo { display: block; }
-        
-        /* Cards */
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
-        .card { background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); text-align: center; }
-        .card.zerado { border-color: #ff6b6b; }
-        .qtd { font-size: 28px; font-weight: bold; color: var(--accent); }
-        .card.zerado .qtd { color: #ff6b6b; }
-        .botoes-acao { display: flex; gap: 8px; margin-top: 10px; }
-        .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; text-transform: uppercase; font-size: 11px; }
-        .btn-ret { background-color: #dc3545; } .btn-ins { background-color: #198754; }
-
-        /* Modal (Pop-up) */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-box { background: var(--bg-sidebar); padding: 30px; border-radius: 12px; width: 90%; max-width: 400px; border: 1px solid var(--border-color); text-align: center; }
-        .modal-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-page); color: white; }
-
-        /* Tabelas e Formulários */
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--bg-card); border-radius: 8px; font-size: 14px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
-        .form-group input { width: 100%; max-width: 400px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: white; margin-bottom: 15px; }
-        .btn-salvar { background: var(--accent); color: #000; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        /* Estilos exclusivos deste painel (abas e tabela) */
+        .painel-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.3s; }
+        .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .tab-btn.ativo { background: var(--accent); color: #000; border-color: var(--accent); }
+        .painel-section { display: none; }
+        .painel-section.ativo { display: block; }
+        .tabela-wrapper { overflow-x: auto; border-radius: 8px; }
+        table { width: 100%; min-width: 520px; border-collapse: collapse; background: var(--bg-card); font-size: 13px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        th { color: var(--accent); text-transform: uppercase; font-size: 11px; }
     </style>
 </head>
 <body>
+    <header class="header">
+        <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+            <h1 style="margin-bottom: 5px;">⚙️ Painel de Gestão</h1>
+            <div id="nome-operador" style="color: var(--success); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
+                👤 User: Carregando...
+            </div>
+        </div>
+    </header>
 
-    <aside>
-        <h2>⚙️ Gestão</h2>
-        <button class="nav-btn ativo" onclick="mudarAba('disponiveis', this)">📦 Materiais</button>
-        <button class="nav-btn" onclick="mudarAba('historico', this); carregarHistorico()">📜 Histórico</button>
-        <button class="nav-btn" onclick="mudarAba('cadastrar', this)">➕ Adicionar Novo</button>
-        <a href="index.html" class="btn-voltar">🔒 Sair</a>
-    </aside>
+    <div class="container">
+        <div class="painel-tabs">
+            <button class="tab-btn ativo" onclick="mudarAba('disponiveis', this)">📦 Materiais</button>
+            <button class="tab-btn" onclick="mudarAba('historico', this); carregarHistorico()">📜 Histórico</button>
+            <button class="tab-btn" onclick="mudarAba('cadastrar', this)">➕ Adicionar</button>
+        </div>
 
-    <main>
-        <!-- ABA: ITENS DISPONÍVEIS -->
-        <section id="aba-disponiveis" class="section ativo">
-            <h1 style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">Materiais Disponíveis</h1>
-            <div id="grid-cards" class="grid">Carregando dados...</div>
+        <!-- ABA: MATERIAIS -->
+        <section id="aba-disponiveis" class="painel-section ativo">
+            <div id="grid-cards" class="grid">
+                <p style="text-align: center; color: var(--accent); grid-column: 1/-1;">Carregando dados...</p>
+            </div>
         </section>
 
         <!-- ABA: HISTÓRICO -->
-        <section id="aba-historico" class="section">
-            <h1 style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">Controle de Retiradas</h1>
-            <table>
-                <thead><tr><th>Data</th><th>Item</th><th>Ação</th><th>Qtd</th><th>Responsável</th></tr></thead>
-                <tbody id="tabela-historico"></tbody>
-            </table>
+        <section id="aba-historico" class="painel-section">
+            <div class="tabela-wrapper">
+                <table>
+                    <thead><tr><th>Data</th><th>Item</th><th>Ação</th><th>Qtd</th><th>Responsável</th></tr></thead>
+                    <tbody id="tabela-historico"></tbody>
+                </table>
+            </div>
         </section>
 
-        <!-- ABA: CADASTRAR NOVO ITEM -->
-        <section id="aba-cadastrar" class="section">
-            <h1 style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">Novo Material</h1>
-            <div class="form-group"><input type="text" id="novo-codigo" placeholder="Código Numérico"></div>
-            <div class="form-group"><input type="text" id="novo-descricao" placeholder="Descrição do Item"></div>
-            <div class="form-group"><input type="number" id="novo-qtd" value="0" min="0" placeholder="Quantidade Inicial"></div>
-            <button class="btn-salvar" onclick="salvarNovoItem()">Salvar Material</button>
+        <!-- ABA: CADASTRAR -->
+        <section id="aba-cadastrar" class="painel-section">
+            <div class="cyber-form">
+                <h2 style="color: var(--accent); margin-bottom: 20px; text-align: center;">NOVO MATERIAL</h2>
+                <label style="font-size: 12px; color: var(--text-muted);">Código Numérico:</label>
+                <input type="text" id="novo-codigo" class="input-tech" placeholder="Ex: 50082805">
+                <label style="font-size: 12px; color: var(--text-muted);">Descrição:</label>
+                <input type="text" id="novo-descricao" class="input-tech" placeholder="Ex: Luminária 10W">
+                <label style="font-size: 12px; color: var(--text-muted);">Quantidade Inicial:</label>
+                <input type="number" id="novo-qtd" class="input-tech" value="0" min="0">
+                <button class="cyber-btn" onclick="salvarNovoItem()">Salvar Material</button>
+            </div>
         </section>
-    </main>
+    </div>
 
-    <!-- MODAL -->
-    <div id="modalAcao" class="modal-overlay">
+    <!-- Modal de Movimentação -->
+    <div id="modalAcao" class="modal">
         <div class="modal-box">
             <h2 id="modal-titulo">Ação</h2>
-            <p id="modal-desc" style="color: var(--text-muted); font-size: 14px;"></p>
-            <input type="text" id="modal-nome" placeholder="Seu Nome (Responsável)">
-            <input type="number" id="modal-qtd" placeholder="Quantidade" min="1" value="1">
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn btn-ret" onclick="fecharModal()">Cancelar</button>
+            <p id="modal-desc" style="color: var(--text-muted); font-size: 13px; margin-bottom: 15px;"></p>
+            <input type="number" id="modal-qtd" class="input-tech" placeholder="Quantidade" min="1" value="1">
+            <div class="botoes" style="flex-direction: row;">
+                <button class="btn btn-ret" style="background: #64748b;" onclick="fecharModal()">Cancelar</button>
                 <button class="btn btn-ins" onclick="confirmarAcao()">Confirmar</button>
             </div>
         </div>
     </div>
 
+    <nav class="bottom-nav">
+        <a href="itens.html"><span class="nav-icon">📦</span>Estoque</a>
+        <a href="historico.html"><span class="nav-icon">📜</span>Histórico</a>
+        <a href="painel.html" class="ativo"><span class="nav-icon">⚙️</span>Painel</a>
+        <a href="#" onclick="travarArmario()"><span class="nav-icon">🔒</span>Sair</a>
+    </nav>
+
+    <script src="config.js"></script>
     <script>
-        // Credenciais resgatadas do seu projeto Supabase existente
-        const SUPABASE_URL = 'https://lxdmksmufubyuyfxuakh.supabase.co'; 
-        const SUPABASE_KEY = 'sb_publishable_CMbXxUECMbtg9h8JEtDjow_bSntFiEi';
-        const cliente = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // ===================== PROTEÇÃO DE ACESSO =====================
+        // Só quem está nesta lista consegue abrir o Painel de Gestão.
+        // Escreva os nomes em minúsculo, exatamente como a pessoa digita
+        // no login (ex: se o Hiccaro também deve ser admin, adicione 'hiccaro').
+        const ADMINS_PERMITIDOS = ['wilker'];
 
-        let itemCod = ''; let itemQtd = 0; let acao = '';
+        const operadorLogado = sessionStorage.getItem('operadorLogado');
 
+        if (!operadorLogado) {
+            alert('🔒 O Armário está trancado! Faça login primeiro.');
+            window.location.href = 'index.html';
+        } else if (!ADMINS_PERMITIDOS.includes(operadorLogado.toLowerCase())) {
+            alert('⛔ Você não tem permissão para acessar o Painel de Gestão.');
+            window.location.href = 'itens.html';
+        } else {
+            document.getElementById('nome-operador').innerText = `👤 User: ${operadorLogado}`;
+        }
+
+        function travarArmario() {
+            sessionStorage.removeItem('operadorLogado');
+            window.location.href = 'index.html';
+        }
+
+        // ===================== NAVEGAÇÃO ENTRE ABAS =====================
         function mudarAba(id, btn) {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('ativo'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('ativo'));
+            document.querySelectorAll('.painel-section').forEach(s => s.classList.remove('ativo'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('ativo'));
             document.getElementById('aba-' + id).classList.add('ativo');
             btn.classList.add('ativo');
         }
+
+        // ===================== DADOS =====================
+        let itemCod = ''; let itemQtd = 0; let acao = '';
 
         async function carregarItens() {
             const { data, error } = await cliente.from('itens').select('*').order('descricao');
@@ -117,16 +132,16 @@
 
             grid.innerHTML = '';
             data.forEach(item => {
-                const isZerado = item.quantidade_atual === 0;
+                const zerado = item.quantidade_atual === 0;
                 grid.innerHTML += `
-                    <div class="card ${isZerado ? 'zerado' : ''}">
-                        <h3 style="margin:5px 0;">${item.descricao}</h3>
-                        <div style="font-size:12px; color:var(--text-muted)">Cód: ${item.codigo}</div>
-                        <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:6px; margin:10px 0;">
+                    <div class="card ${zerado ? 'zerado' : ''}">
+                        <h3>${item.descricao}</h3>
+                        <div style="font-size: 11px; color: var(--text-muted);">Cód: ${item.codigo}</div>
+                        <div class="qtd-box">
                             <div class="qtd">${item.quantidade_atual}</div>
-                            ${isZerado ? '<div style="color:#ff6b6b; font-size:12px; margin-top:5px;">ESTOQUE ZERADO</div>' : ''}
+                            ${zerado ? '<div class="aviso-zero">ESTOQUE ZERADO</div>' : ''}
                         </div>
-                        <div class="botoes-acao">
+                        <div class="botoes">
                             <button class="btn btn-ret" onclick="abrirModal('${item.codigo}', '${item.descricao}', ${item.quantidade_atual}, 'SAIDA')">Retirar</button>
                             <button class="btn btn-ins" onclick="abrirModal('${item.codigo}', '${item.descricao}', ${item.quantidade_atual}, 'ENTRADA')">Inserir</button>
                         </div>
@@ -136,60 +151,90 @@
         }
 
         async function carregarHistorico() {
-            const { data } = await cliente.from('movimentacoes').select('*').order('data_hora', { ascending: false }).limit(30);
+            const { data, error } = await cliente.from('movimentacoes')
+                .select('*, itens(descricao)')
+                .order('data_hora', { ascending: false })
+                .limit(50);
+
             const tabela = document.getElementById('tabela-historico');
+            if (error) { tabela.innerHTML = `<tr><td colspan="5">Erro: ${error.message}</td></tr>`; return; }
+
             tabela.innerHTML = '';
+            if (data.length === 0) {
+                tabela.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Nenhum histórico registrado.</td></tr>';
+                return;
+            }
+
             data.forEach(mov => {
                 const dataFormatada = new Date(mov.data_hora).toLocaleString('pt-BR');
-                const cor = mov.tipo_movimentacao === 'SAIDA' ? '#ff6b6b' : '#20c997';
-                tabela.innerHTML += `<tr><td>${dataFormatada}</td><td>${mov.codigo_item}</td><td style="color:${cor}; font-weight:bold;">${mov.tipo_movimentacao}</td><td>${mov.quantidade}</td><td>${mov.observacao}</td></tr>`;
+                const cor = mov.tipo_movimentacao === 'SAIDA' ? 'var(--danger)' : 'var(--success)';
+                const nomeItem = mov.itens ? mov.itens.descricao : 'Item Excluído do Sistema';
+                tabela.innerHTML += `<tr>
+                    <td>${dataFormatada}</td>
+                    <td>${nomeItem}</td>
+                    <td style="color:${cor}; font-weight:bold;">${mov.tipo_movimentacao}</td>
+                    <td>${mov.quantidade}</td>
+                    <td>${mov.observacao}</td>
+                </tr>`;
             });
         }
 
         async function salvarNovoItem() {
-            const cod = document.getElementById('novo-codigo').value;
-            const desc = document.getElementById('novo-descricao').value;
+            const cod = document.getElementById('novo-codigo').value.trim();
+            const desc = document.getElementById('novo-descricao').value.trim();
             const qtd = document.getElementById('novo-qtd').value;
-            if(!cod || !desc) return alert("Preencha código e descrição!");
-            
+            if (!cod || !desc) return alert('Preencha código e descrição!');
+
             const { error } = await cliente.from('itens').insert([{ codigo: cod, descricao: desc, quantidade_atual: parseInt(qtd) }]);
-            if (error) return alert("Erro ao salvar: " + error.message);
-            
-            alert("Item cadastrado!");
-            document.querySelectorAll('input').forEach(i => i.value = '');
+            if (error) return alert('Erro ao salvar: ' + error.message);
+
+            if (parseInt(qtd) > 0) {
+                await cliente.from('movimentacoes').insert([{
+                    codigo_item: cod,
+                    tipo_movimentacao: 'ENTRADA',
+                    quantidade: parseInt(qtd),
+                    observacao: operadorLogado + ' (Cadastro de Novo Item)'
+                }]);
+            }
+
+            alert('Item cadastrado!');
+            document.getElementById('novo-codigo').value = '';
+            document.getElementById('novo-descricao').value = '';
+            document.getElementById('novo-qtd').value = '0';
             carregarItens();
         }
 
         function abrirModal(cod, desc, qtd, tipo) {
             itemCod = cod; itemQtd = qtd; acao = tipo;
             document.getElementById('modal-titulo').innerText = tipo === 'SAIDA' ? 'Retirar' : 'Inserir';
-            document.getElementById('modal-titulo').style.color = tipo === 'SAIDA' ? '#ff6b6b' : '#20c997';
+            document.getElementById('modal-titulo').style.color = tipo === 'SAIDA' ? 'var(--danger)' : 'var(--success)';
             document.getElementById('modal-desc').innerText = desc;
-            document.getElementById('modal-nome').value = '';
             document.getElementById('modal-qtd').value = 1;
             document.getElementById('modalAcao').style.display = 'flex';
         }
 
-        function fecharModal() { document.getElementById('modalAcao').style.display = 'none'; }
+        function fecharModal() {
+            document.getElementById('modalAcao').style.display = 'none';
+        }
 
         async function confirmarAcao() {
-            const nome = document.getElementById('modal-nome').value.trim();
             const qtd = parseInt(document.getElementById('modal-qtd').value);
-            
-            if (!nome) return alert("Digite seu nome!");
-            if (qtd <= 0) return alert("Quantidade inválida!");
+            if (qtd <= 0) return alert('Quantidade inválida!');
 
-            let novaQtd = acao === 'ENTRADA' ? itemQtd + qtd : itemQtd - qtd;
-            if (novaQtd < 0) return alert("Estoque insuficiente!");
+            const novaQtd = acao === 'ENTRADA' ? itemQtd + qtd : itemQtd - qtd;
+            if (novaQtd < 0) return alert('Estoque insuficiente!');
 
             await cliente.from('itens').update({ quantidade_atual: novaQtd }).eq('codigo', itemCod);
-            await cliente.from('movimentacoes').insert([{ codigo_item: itemCod, tipo_movimentacao: acao, quantidade: qtd, observacao: nome }]);
+            await cliente.from('movimentacoes').insert([{ codigo_item: itemCod, tipo_movimentacao: acao, quantidade: qtd, observacao: operadorLogado }]);
 
             fecharModal();
             carregarItens();
         }
 
-        carregarItens();
+        // Só carrega os dados se o acesso foi liberado
+        if (operadorLogado && ADMINS_PERMITIDOS.includes(operadorLogado.toLowerCase())) {
+            carregarItens();
+        }
     </script>
 </body>
 </html>
